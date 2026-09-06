@@ -1,6 +1,6 @@
 # Mindful Journal AI
 
-A secure, user-authenticated journaling web application powered by **Gemini 3.6 Flash** and **Cloud Firestore**, featuring **Reflection Intelligence** and strict user-isolated storage.
+A secure, user-authenticated journaling web application powered by **Gemini 3.6 Flash** and **Cloud Firestore**, featuring **Reflection Intelligence**, an **Adjustable Intelligence Workspace**, and strict user-isolated storage.
 
 ---
 
@@ -11,6 +11,7 @@ A secure, user-authenticated journaling web application powered by **Gemini 3.6 
 - **Database & Persistence**: Google Cloud Firestore with strict owner-bound security rules (`/users/{userId}/entries/{entryId}`).
 - **AI Processing Engine**: Gemini 3.6 Flash using `@google/genai` with an automated resilient model fallback ladder (`gemini-3.6-flash` &rarr; `gemini-3.1-flash-lite` &rarr; `gemini-flash-latest` &rarr; `gemini-3.7-flash`).
 - **Secret Management**: Google Cloud Secret Manager storing the `GEMINI_API_KEY`, dynamically injected into the Cloud Run container at runtime.
+- **Responsive Workspace**: Adjustable Reflection Intelligence sidebar supporting fluid mouse dragging (320px–750px) and fast preset toggles (Compact 360px, Standard 440px, Wide 580px, XL 680px), paired with an in-app safe deletion workflow.
 
 ---
 
@@ -154,7 +155,7 @@ gcloud run services describe mindful-journal-ai \
 | **1. Input Surfaces** | Large request payloads, XSS injection via journal reflections | `express.json` limited to 1MB; messages capped at 10,000 characters; React JSX output encoding. |
 | **2. Planning & Reasoning** | Prompt injection trying to bypass reflection instructions or leak credentials | Delimited `<journal_entry>` XML tagging isolates reflection text as data; system prompts command strict non-execution of inner commands. |
 | **3. Tool Execution** | Browser-side API key leakage, model rate limits | Server-side Express proxy keeps `GEMINI_API_KEY` hidden; 4-tier model fallback ladder with error recovery classification. |
-| **4. Memory & State** | Cross-user journal access, client UID spoofing | Backend decodes and cryptographically verifies Firebase ID tokens; Firestore rules enforce `request.auth.uid == userId`. |
+| **4. Memory & State** | Cross-user journal access, client UID spoofing | Backend decodes and cryptographically verifies Firebase ID tokens; Firestore rules enforce `request.auth.uid == userId`. In-app deletion double-confirmation modal prevents accidental loss. |
 | **5. Inter-System Comm** | Password compromise, insecure transmission | Federated Google Sign-In avoids custom password management; tokens passed over TLS Bearer headers. |
 
 ---
@@ -174,7 +175,25 @@ Every user-facing flow has a corresponding verification test case:
 - **Expected Result**: A new document is written to Firestore at `/users/{current_uid}/entries/{entry_id}`. The title defaults to "New Reflection".
 - **Security Check**: Attempting to query another user's path directly returns a Firestore Permission Denied error.
 
-### Test Case 3: Multi-Turn Reflection Dialogue with Gemini
+### Test Case 3: Reflection Deletion with In-App Confirmation Modal
+- **Action**: In the left sidebar or the active reflection editor header, click the trash can icon (`btn-delete-active-entry` or `btn-delete-entry-{id}`).
+- **Expected Result**: An in-app `DeleteConfirmModal` appears displaying the exact title of the reflection, warning of permanent deletion, with "Cancel" and "Delete Reflection" actions.
+- **Action**: Click "Cancel" or press `Escape`.
+- **Expected Result**: The modal closes immediately; the reflection remains in the database.
+- **Action**: Re-open the modal and click "Delete Reflection".
+- **Expected Result**: The button displays a deleting spinner, the document is permanently deleted from `/users/{uid}/entries/{id}`, and the UI automatically switches to the next available reflection or empty state.
+
+### Test Case 4: Reflection Intelligence Sidebar Resizing & Presets
+- **Action**: Hover over the vertical separator between the journal editor and the intelligence panel.
+- **Expected Result**: The cursor changes to `col-resize` with a subtle highlight.
+- **Action**: Click and drag horizontally.
+- **Expected Result**: The sidebar width smoothly resizes between 320px and 750px without text overflow or layout break.
+- **Action**: Click the width presets in the intelligence header (**Compact**, **Standard**, **Wide**, **XL**).
+- **Expected Result**: The sidebar snaps instantly to 360px, 440px, 580px, or 680px, and persists the choice in `localStorage`.
+- **Action**: Click the Maximize / Minimize toggle in the intelligence card header.
+- **Expected Result**: Toggles between standard (440px) and wide (580px) view modes.
+
+### Test Case 5: Multi-Turn Reflection Dialogue with Gemini
 - **Action**: Select "Deep Reflection" mode, type a journal thought (e.g., *"I've been feeling torn between two projects at work"*), and press Cmd+Enter.
 - **Expected Result**:
   1. The user thought is persisted to Firestore immediately (never cleared if the network fails).
@@ -182,11 +201,11 @@ Every user-facing flow has a corresponding verification test case:
   3. Gemini returns an empathetic, constructive response formatted in clean Markdown.
   4. The conversation history is updated in Firestore under the active entry.
 
-### Test Case 4: Focus Modes (Brainstorm & Synthesis)
+### Test Case 6: Focus Modes (Brainstorm & Synthesis)
 - **Action**: Switch focus mode to "Brainstorm" and ask for creative approaches to a challenge.
 - **Expected Result**: Gemini adapts its persona to generate divergent ideas and actionable options.
 
-### Test Case 5: Reflection Intelligence Extraction
+### Test Case 7: Reflection Intelligence Extraction
 - **Action**: Click "Analyze Intelligence" or "Generate Reflection Intelligence".
 - **Expected Result**: The backend analyzes the full reflection thread and displays:
   - **Mood & Tone**: Descriptive badge and numeric 1-5 gauge bar.
@@ -195,26 +214,26 @@ Every user-facing flow has a corresponding verification test case:
   - **Provocative Question**: A deep coaching inquiry for future contemplation.
   - **Summary**: Concise distillation saved to Firestore.
 
-### Test Case 6: Interactive Action Items Tracking
+### Test Case 8: Interactive Action Items Tracking
 - **Action**: Click the checkbox on an action item inside the Intelligence card.
 - **Expected Result**: The item is crossed out with a strikethrough and visual checkmark.
 
-### Test Case 7: Search and Past Entries Navigation
+### Test Case 9: Search and Past Entries Navigation
 - **Action**: Type a keyword in the sidebar search bar.
 - **Expected Result**: The list filters in real-time, showing only entries matching the title or message content.
 - **Action**: Click a previous entry.
 - **Expected Result**: The multi-turn conversation and previously extracted intelligence reload seamlessly.
 
-### Test Case 8: Weekly Reflection Dashboard & AI Synthesis
+### Test Case 10: Weekly Reflection Dashboard & AI Synthesis
 - **Action**: Click "Weekly Intelligence" in the top navigation bar.
 - **Expected Result**: The dashboard aggregates reflections logged over the past 7 days, showing average mood score, total entries, and weekly action items.
 - **Action**: Click "Generate Weekly AI Synthesis".
 - **Expected Result**: Gemini produces a holistic executive review with Dominant Themes, Emotional Trajectory, Core Wins, and Focus for Next Week.
 
-### Test Case 9: Input Persistence Failure Guard
+### Test Case 11: Input Persistence Failure Guard
 - **Action**: Simulate a network error or offline state and submit a reflection.
 - **Expected Result**: An error alert banner is displayed; the user's typed text remains intact in the editor with a retry option, guaranteeing zero data loss.
 
-### Test Case 10: Sign Out & Session Teardown
+### Test Case 12: Sign Out & Session Teardown
 - **Action**: Click "Sign Out" in the top navbar.
 - **Expected Result**: Firebase session terminates, in-memory journal state is cleared, and the user is safely returned to the landing page.
