@@ -1,0 +1,6 @@
+{
+  "name": "Mindful Journal AI",
+  "description": "A secure user-authenticated journaling application powered by Gemini 3.6 Flash and Cloud Firestore with Reflection Intelligence and user data isolation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
